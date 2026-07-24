@@ -65,6 +65,8 @@ class StreamingType(Enum):
     MEMORY_TOOL_DELTA = "memory_tool_delta"
     MEMORY_TOOL_NO_ACCESS = "memory_tool_no_access"
 
+    POSTGRES_TOOL_START = "postgres_tool_start"
+
     DEEP_RESEARCH_PLAN_START = "deep_research_plan_start"
     DEEP_RESEARCH_PLAN_DELTA = "deep_research_plan_delta"
     RESEARCH_AGENT_START = "research_agent_start"
@@ -343,6 +345,13 @@ class MemoryToolNoAccess(BaseObj):
 
 
 ################################################
+# Postgres Tool Packets
+################################################
+class PostgresToolStart(BaseObj):
+    type: Literal["postgres_tool_start"] = StreamingType.POSTGRES_TOOL_START.value
+
+
+################################################
 # Deep Research Packets
 ################################################
 class DeepResearchPlanStart(BaseObj):
@@ -455,6 +464,7 @@ PacketObj = Union[
     MemoryToolStart,
     MemoryToolDelta,
     MemoryToolNoAccess,
+    PostgresToolStart,
     # Reasoning Packets
     ReasoningStart,
     ReasoningDelta,

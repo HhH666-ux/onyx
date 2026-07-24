@@ -55,6 +55,7 @@ from onyx.tools.tool_implementations.images.image_generation_tool import (
 from onyx.tools.tool_implementations.images.models import FinalImageGenerationResponse
 from onyx.tools.tool_implementations.memory.memory_tool import MemoryTool
 from onyx.tools.tool_implementations.open_url.open_url_tool import OpenURLTool
+from onyx.tools.tool_implementations.postgres.postgres_tool import PostgresTool
 from onyx.tools.tool_implementations.python.python_tool import PythonTool
 from onyx.tools.tool_implementations.search.search_tool import SearchTool
 from onyx.tools.tool_implementations.web_search.web_search_tool import WebSearchTool
@@ -497,6 +498,8 @@ class ToolRenderer:
                 objects = [packets.FileReaderStart()]
             elif name == MemoryTool.NAME:
                 objects = [packets.MemoryToolStart()]
+            elif name == PostgresTool.NAME:
+                objects = [packets.PostgresToolStart()]
             elif name == ImageGenerationTool.NAME:
                 objects = [packets.ImageGenerationToolStart()]
             elif name == RESEARCH_AGENT_TOOL_NAME:
@@ -697,6 +700,7 @@ class ToolRenderer:
             OpenURLTool.NAME,
             ImageGenerationTool.NAME,
             MemoryTool.NAME,
+            PostgresTool.NAME,
         }:
             objects.append(
                 packets.CustomToolDelta(
