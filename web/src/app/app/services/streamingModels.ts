@@ -43,6 +43,7 @@ export enum PacketType {
   MEMORY_TOOL_START = "memory_tool_start",
   MEMORY_TOOL_DELTA = "memory_tool_delta",
   MEMORY_TOOL_NO_ACCESS = "memory_tool_no_access",
+  POSTGRES_TOOL_START = "postgres_tool_start",
 
   // Reasoning packets
   REASONING_START = "reasoning_start",
@@ -262,6 +263,11 @@ export interface MemoryToolNoAccess extends BaseObj {
   type: "memory_tool_no_access";
 }
 
+// Postgres Tool Packets
+export interface PostgresToolStart extends BaseObj {
+  type: "postgres_tool_start";
+}
+
 // Reasoning Packets
 export interface ReasoningStart extends BaseObj {
   type: "reasoning_start";
@@ -410,6 +416,7 @@ export type MemoryToolObj =
   | MemoryToolNoAccess
   | SectionEnd
   | PacketError;
+export type PostgresToolObj = PostgresToolStart | SectionEnd | PacketError;
 export type NewToolObj =
   | SearchToolObj
   | ImageGenerationToolObj
@@ -417,7 +424,8 @@ export type NewToolObj =
   | FetchToolObj
   | CustomToolObj
   | FileReaderToolObj
-  | MemoryToolObj;
+  | MemoryToolObj
+  | PostgresToolObj;
 
 export type ReasoningObj =
   | ReasoningStart
@@ -538,6 +546,11 @@ export interface FileReaderToolPacket {
 export interface MemoryToolPacket {
   placement: Placement;
   obj: MemoryToolObj;
+}
+
+export interface PostgresToolPacket {
+  placement: Placement;
+  obj: PostgresToolObj;
 }
 
 export interface ReasoningPacket {
