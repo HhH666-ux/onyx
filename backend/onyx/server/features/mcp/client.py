@@ -17,13 +17,15 @@ from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamablehttp_client
 from mcp.shared._httpx_utils import McpHttpClientFactory
 from mcp.types import (
+    AudioContent,
     CallToolResult,
+    ImageContent,
     InitializeResult,
     ListResourcesResult,
     TextResourceContents,
 )
 from mcp.types import Tool as MCPLibTool
-from pydantic import BaseModel
+from pydantic import BaseModel, JsonValue
 
 from onyx.configs.app_configs import MCP_TOOL_CALL_TIMEOUT_SECONDS
 from onyx.db.enums import MCPTransport
@@ -247,12 +249,35 @@ def process_mcp_result(call_tool_result: CallToolResult) -> str:
             parts.append(
                 f"link: {content_block.uri} title: {content_block.title} description: {content_block.description}"
             )
-        # TODO: handle other content block types
+        if isinstance(content_block, ImageContent | AudioContent):
+            # Tool results carry text only.
+            parts.append(f"[{content_block.type} omitted: {content_block.mimeType}]")
 
     text = "\n\n".join(p for p in parts if p)
     if text or call_tool_result.structuredContent is None:
         return text
     return json.dumps(call_tool_result.structuredContent)
+
+
+def _reject_non_finite_number(constant: str) -> float:
+    raise ValueError(f"Non-finite JSON number: {constant}")
+
+
+def _text_value(text: str) -> JsonValue:
+    """`text`, parsed when it is a JSON object or array, so the result is
+    JSON-encoded once rather than as an escaped string inside JSON. Any other
+    text, including a JSON scalar, stays a string."""
+    try:
+        parsed = json.loads(text, parse_constant=_reject_non_finite_number)
+    except (ValueError, RecursionError):
+        return text
+    return parsed if isinstance(parsed, dict | list) else text
+
+
+def mcp_result_value(call_tool_result: CallToolResult) -> JsonValue:
+    """The value the model reads for a tool result: its text content
+    (`process_mcp_result`), parsed when it is a JSON object or array."""
+    return _text_value(process_mcp_result(call_tool_result))
 
 
 def _call_mcp_tool(

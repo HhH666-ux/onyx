@@ -14,6 +14,11 @@ from onyx.prompts.chat_prompts import (
     REQUIRE_CITATION_GUIDANCE,
 )
 from onyx.tools.models import GeneratedImage
+from onyx.tools.tool_implementations.code_mode.code_mode_tool import CodeModeTool
+from onyx.tools.tool_implementations.code_mode.models import (
+    CodeModeCall,
+    CodeModeExecutionResult,
+)
 from onyx.tools.tool_implementations.images.image_generation_tool import (
     ImageGenerationTool,
 )
@@ -49,6 +54,30 @@ def _direct_image() -> ToolResultMessage:
         tool_name=ImageGenerationTool.NAME,
         content="[]",
         details=IMAGES,
+    )
+
+
+def _nested_image() -> ToolResultMessage:
+    return ToolResultMessage(
+        tool_call_id="code",
+        tool_name=CodeModeTool.NAME,
+        content="Execution completed",
+        details=CodeModeExecutionResult(
+            cell_id=1,
+            code="await generate_image(prompt='a')",
+            status="completed",
+            calls=[
+                CodeModeCall(
+                    id="code:0",
+                    state="ok",
+                    index=0,
+                    tool_name=ImageGenerationTool.NAME,
+                    function_name=ImageGenerationTool.NAME,
+                    arguments={"prompt": "a"},
+                    details=IMAGES,
+                )
+            ],
+        ),
     )
 
 
@@ -102,8 +131,10 @@ def test_web_search_reminder_requires_available_open_url_tool() -> None:
     )
 
 
-def test_generated_images_add_a_reminder_after_the_task_prompt() -> None:
-    result = _direct_image()
+@pytest.mark.parametrize("result", [_direct_image(), _nested_image()])
+def test_generated_images_add_a_reminder_after_the_task_prompt(
+    result: ToolResultMessage,
+) -> None:
     context = _context(task_prompt="Answer in French.")
     reminder = build_chat_reminder(context, [result], [result], enabled=True)
     assert reminder == f"Answer in French.\n\n{IMAGE_GEN_REMINDER}"

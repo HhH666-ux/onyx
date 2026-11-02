@@ -21,7 +21,9 @@ import {
 import { GeneratedImage, Packet, StopReason } from "@/chat/streamingModels";
 import {
   TurnGroup,
+  expandCodeModeSteps,
   groupStepsByTurn,
+  isCodeModeWorking,
   transformPacketGroups,
 } from "@/chat/timeline/transformers";
 
@@ -32,6 +34,8 @@ export interface UsePacketProcessorResult {
   toolGroups: GroupedPacket[];
   displayGroups: GroupedPacket[];
   toolTurnGroups: TurnGroup[];
+  /** A code mode program works between tool calls; it has no step. */
+  codeModeWorking: boolean;
   citations: StreamingCitation[];
   citationMap: CitationMap;
   documentMap: Map<string, SearchDoc>;
@@ -92,10 +96,13 @@ export function usePacketProcessor(
     state.potentialDisplayGroups,
   ]);
 
-  const toolTurnGroups = useMemo(
-    () => groupStepsByTurn(transformPacketGroups(state.toolGroups)),
-    [state.toolGroups],
-  );
+  const { toolTurnGroups, codeModeWorking } = useMemo(() => {
+    const steps = transformPacketGroups(state.toolGroups);
+    return {
+      toolTurnGroups: groupStepsByTurn(expandCodeModeSteps(steps)),
+      codeModeWorking: isCodeModeWorking(steps),
+    };
+  }, [state.toolGroups]);
 
   // Read the current render's finalAnswerComing, not an effect-lagged mirror — so a renderer's
   // onComplete fired in the same commit the answer begins isn't dropped.
@@ -114,6 +121,7 @@ export function usePacketProcessor(
     toolGroups: state.toolGroups,
     displayGroups,
     toolTurnGroups,
+    codeModeWorking: codeModeWorking && !state.stopPacketSeen,
     citations: state.citations,
     citationMap: state.citationMap,
     documentMap: state.documentMap,

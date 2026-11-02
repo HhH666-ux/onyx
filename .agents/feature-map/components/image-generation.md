@@ -19,6 +19,7 @@ is on (`ee/onyx/server/tenants/provisioning.py`).
   reference. After an image call, the assistant can continue with other tools
   or generate another image before answering. Generated images from all steps
   appear once above the answer.
+  Code mode programs can generate images through the same tool.
 - **An admin** opens the image generation admin page. It lists the image
   models of each connected LLM provider. The recommended view, the default,
   shows the non-deprecated catalog image models; the full view shows every
@@ -51,6 +52,7 @@ It does not own:
 - File storage and the session stamp on generated images
   ([[file-store-and-user-files]]).
 - The chat cycle and its tool-call limit ([[core-chat-loop]]).
+- How the timeline and the answer show the images ([[chat-frontend]]).
 - The Craft `image-generation` skill, which calls the CLI ([[skills]]). The
   skill is offered only when `is_image_generation_configured` is true.
 
@@ -139,6 +141,8 @@ and saves no files. The caller needs `Permission.GENERATE_IMAGE`.
    are on, a result with generated images adds `IMAGE_GEN_REMINDER` without
    replacing the agent's task prompt. The reminder allows continued work and
    tells the model not to link or embed the generated images.
+   Code mode programs can also generate images. Later turns retain each image's
+   file ID and revised prompt for edits (`chat/tool_results.py:omitted_result_text`).
 4. `response-format-per-model` **`response_format` depends on the model.**
    `image_gen/generation.py:response_format_for_model` leaves it out for
    `gpt-image-*` models, which reject it, and asks for `b64_json` for the rest.
@@ -171,7 +175,8 @@ and saves no files. The caller needs `Permission.GENERATE_IMAGE`.
    names.** The web enum calls the finished-image packet
    `IMAGE_GENERATION_TOOL_DELTA`, but its value is `"image_generation_final"`
    (`web/src/app/app/services/streamingModels.ts`). The renderer treats "start
-   with no end" as running. Match packets by their string value.
+   with no end" as running, and a call that ends or stops with no image and no
+   error as stopped. Match packets by their string value.
 9. `one-image-per-chat-call` **The chat tool makes one image per call.**
    `ImageGenerationTool._generate_image` passes `n=1`. Only the standalone
    endpoint accepts `n`, up to `server/features/image_generation/api.py:_MAX_IMAGES`.
@@ -246,6 +251,7 @@ and saves no files. The caller needs `Permission.GENERATE_IMAGE`.
 - External dependency unit tests: `backend/tests/external_dependency_unit/tools/`.
 - Integration: `backend/tests/integration/tests/image_generation/` and
   `backend/tests/integration/tests/tools/`.
-- Playwright: `web/tests/e2e/admin/image-generation/`.
+- Playwright: `web/tests/e2e/admin/image-generation/`, and the generated-image
+  cases in `web/tests/e2e/chat/chat_file_uploads.spec.ts`.
 - By hand, set a default config and ask for an image. Then remove the default:
   the next message must have no image tool call and no error.

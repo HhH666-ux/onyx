@@ -3329,7 +3329,43 @@ def test_execution_deadline_cancels_work_but_waits_for_preparation_to_drain(
             # The run reports its own deadline; the turn adds no second stop.
             assert _stop_reasons(list(turn.delivery.reader)) == ["timed_out"]
         finally:
-            release.set()
+            turn.delivery.reader.close()
+            _wait_for_chat_workers(chat_workers)
+
+
+def test_a_run_that_ends_at_the_deadline_but_saves_past_the_backstop_stops_once(
+    chat_workers: list[Future[Run | None]],
+) -> None:
+    outcome = Future[ChatResponseOutcome]()
+    with patch("onyx.chat.execution.CHAT_EXECUTION_TIMEOUT_S", 0):
+        turn = ChatTurnExecution(_make_setup(), MagicMock(), outcome)
+    prepared = _chat_agent(
+        Agent(
+            FakeModelClient(lambda *_: pytest.fail("Expired work must not generate")),
+            generation_context=GenerationContext(flow=LLMFlow.CHAT_RESPONSE),
+        )
+    )
+
+    def slow_save(*_args: object, **_kwargs: object) -> None:
+        # The run already sent its stop; its save outlives the backstop.
+        time.sleep(0.5)
+
+    with (
+        patch("onyx.chat.execution.create_chat_agent", return_value=prepared),
+        patch(
+            "onyx.chat.history_store.save_chat_response_to_db", side_effect=slow_save
+        ),
+        patch("onyx.chat.execution._CANCEL_POLL_INTERVAL_S", 0.01),
+        patch("onyx.chat.execution._DEADLINE_BACKSTOP", timedelta(seconds=0.1)),
+    ):
+        _launch_turn(turn)
+        try:
+            reader = start_thread_future(
+                lambda: list(turn.delivery.reader), name="test-reader"
+            )
+            assert _stop_reasons(reader.result(timeout=5)) == ["timed_out"]
+            _wait_for_chat_workers(chat_workers)
+        finally:
             turn.delivery.reader.close()
             _wait_for_chat_workers(chat_workers)
 

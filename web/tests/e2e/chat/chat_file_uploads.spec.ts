@@ -6,6 +6,7 @@ import { CHECKERED_PNG } from "@tests/e2e/fixtures/images";
 import { loginAsWorkerUser } from "@tests/e2e/utils/auth";
 import { sendMessage } from "@tests/e2e/utils/chatActions";
 import {
+  buildMockCodeModeImageStream,
   buildMockImageGenStream,
   buildMockStream,
   mockChatEndpoint,
@@ -302,6 +303,33 @@ test.describe("Chat File Uploads", () => {
         })
         .toBe(true);
       await chat.screenshotContainer("chat-image-before-later-tools");
+    });
+
+    test("an image from a code mode program shows in the answer", async ({
+      page,
+    }) => {
+      await chat.goto();
+      const fileId = "00000000-0000-0000-0000-00000000cccc";
+      await serveImage(page, fileId);
+      await mockChatEndpoint(
+        page,
+        buildMockCodeModeImageStream({
+          fileId,
+          revisedPrompt: "An onyx stone in the sun",
+          message: IMAGE_GEN_AI_MESSAGE,
+        })
+      );
+
+      await sendMessage(page, "Write code that draws an onyx stone");
+
+      const aiMessage = chat.aiMessage();
+      const images = chat.generatedImages();
+      await expect(images).toHaveCount(1, { timeout: 10000 });
+      await expect(images.first()).toHaveAttribute(
+        "src",
+        new RegExp(`/api/chat/file/${fileId}`)
+      );
+      await expect(aiMessage).toContainText(IMAGE_GEN_AI_MESSAGE);
     });
   });
 

@@ -8,7 +8,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
-from mcp.types import CallToolResult, TextContent
+from mcp.types import CallToolResult, ImageContent, TextContent
 from pydantic import JsonValue
 
 from onyx.agents.tools import ToolInvocation
@@ -26,6 +26,10 @@ from onyx.server.metrics.mcp_common import MCPToolCallStatus
 from onyx.server.query_and_chat.placement import Placement
 from onyx.server.query_and_chat.streaming_models import CustomToolDelta
 from onyx.tools.models import CustomToolCallSummary, ToolContext
+from onyx.tools.tool_implementations.code_mode.stubs import (
+    build_tool_stubs,
+    program_value,
+)
 from onyx.tools.tool_implementations.mcp.mcp_tool import MCPTool
 
 
@@ -163,14 +167,20 @@ def test_json_object_reaches_the_model_without_extra_escaping() -> None:
     assert len(response.text) < len(old_response)
 
 
-def test_text_content_takes_precedence_over_structured_content() -> None:
+def test_the_model_reads_text_and_programs_get_structured_content() -> None:
     result = CallToolResult(
         content=[TextContent(type="text", text="2 open issues")],
-        structuredContent={"open": 2},
+        structuredContent={"open": 2, "titles": ["a", "b"]},
     )
+
     response, delta = _run_with_server_result(result)
+
+    # Direct tool calls: the text content, as the server wrote it for the model.
     assert json.loads(response.text) == {"tool_result": "2 open issues"}
     assert delta.data == {"tool_result": "2 open issues"}
+    # Code mode programs: the structured content.
+    [function] = build_tool_stubs([_github_tool()]).functions.values()
+    assert program_value(function, response) == {"open": 2, "titles": ["a", "b"]}
 
 
 def test_structured_content_is_the_text_when_the_server_sends_no_text() -> None:
@@ -184,6 +194,21 @@ def test_structured_content_is_the_text_when_the_server_sends_no_text() -> None:
 def test_empty_result_does_not_invent_none_text() -> None:
     response, _ = _run_with_server_result(CallToolResult(content=[]))
     assert json.loads(response.text) == {"tool_result": ""}
+
+
+def test_media_blocks_are_named_not_dropped() -> None:
+    result = CallToolResult(
+        content=[
+            TextContent(type="text", text="Chart:"),
+            ImageContent(type="image", data="aGk=", mimeType="image/png"),
+        ]
+    )
+
+    response, _ = _run_with_server_result(result)
+
+    assert json.loads(response.text) == {
+        "tool_result": "Chart:\n\n[image omitted: image/png]"
+    }
 
 
 def test_server_reported_error_is_a_tool_error_not_an_auth_error(
