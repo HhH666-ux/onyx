@@ -503,7 +503,6 @@ describe("usePacketProcessor", () => {
           }
         ),
         createPacket(PacketType.SECTION_END, { turn_index: 0 }),
-        createMessageStartPacket({ turn_index: 1 }),
         createStopPacket(),
       ];
 

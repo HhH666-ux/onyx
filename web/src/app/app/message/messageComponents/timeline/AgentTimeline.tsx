@@ -6,7 +6,7 @@ import {
   FullChatState,
   RenderType,
 } from "@/app/app/message/messageComponents/types";
-import { TurnGroup } from "./transformers";
+import { TurnGroup } from "@/app/app/message/messageComponents/timeline/transformers";
 import { cn } from "@opal/utils";
 import AgentAvatar from "@/refresh-components/avatars/AgentAvatar";
 import { TextLoader } from "@opal/loaders";
@@ -29,8 +29,8 @@ import { CompletedHeader } from "@/app/app/message/messageComponents/timeline/he
 import { StoppedHeader } from "@/app/app/message/messageComponents/timeline/headers/StoppedHeader";
 import { ParallelStreamingHeader } from "@/app/app/message/messageComponents/timeline/headers/ParallelStreamingHeader";
 import { useStreamingStartTime } from "@/app/app/stores/useChatSessionStore";
-import { ExpandedTimelineContent } from "./ExpandedTimelineContent";
-import { CollapsedStreamingContent } from "./CollapsedStreamingContent";
+import { ExpandedTimelineContent } from "@/app/app/message/messageComponents/timeline/ExpandedTimelineContent";
+import { CollapsedStreamingContent } from "@/app/app/message/messageComponents/timeline/CollapsedStreamingContent";
 import { TimelineRoot } from "@/app/app/message/messageComponents/timeline/primitives/TimelineRoot";
 import { TimelineHeaderRow } from "@/app/app/message/messageComponents/timeline/primitives/TimelineHeaderRow";
 
