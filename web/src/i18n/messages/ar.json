@@ -12800,6 +12800,9 @@
         },
         "stoppedStatus": {
           "text": "تم إيقاف توليد الصورة"
+        },
+        "emptyState": {
+          "text": "لم يتم توليد صور"
         }
       },
       "memoizedLink": {

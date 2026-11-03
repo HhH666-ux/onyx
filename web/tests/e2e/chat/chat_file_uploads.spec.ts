@@ -257,14 +257,13 @@ test.describe("Chat File Uploads", () => {
         "Generate an image of a friendly cartoon onyx stone"
       );
 
-      const aiMessage = chat.aiMessage();
       const generatedImage = chat.generatedImages();
       await expect(generatedImage).toBeVisible({ timeout: 10000 });
       await expect(generatedImage).toHaveAttribute(
         "src",
         new RegExp(`/api/chat/file/${fileId}`)
       );
-      await expect(aiMessage).toContainText(IMAGE_GEN_AI_MESSAGE);
+      await expect(chat.answerText(IMAGE_GEN_AI_MESSAGE)).toBeVisible();
 
       await chat.screenshotContainer("chat-llm-generated-image");
     });
@@ -322,14 +321,13 @@ test.describe("Chat File Uploads", () => {
 
       await sendMessage(page, "Write code that draws an onyx stone");
 
-      const aiMessage = chat.aiMessage();
       const images = chat.generatedImages();
       await expect(images).toHaveCount(1, { timeout: 10000 });
       await expect(images.first()).toHaveAttribute(
         "src",
         new RegExp(`/api/chat/file/${fileId}`)
       );
-      await expect(aiMessage).toContainText(IMAGE_GEN_AI_MESSAGE);
+      await expect(chat.answerText(IMAGE_GEN_AI_MESSAGE)).toBeVisible();
     });
   });
 

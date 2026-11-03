@@ -12800,6 +12800,9 @@
         },
         "stoppedStatus": {
           "text": "Génération d'images arrêtée"
+        },
+        "emptyState": {
+          "text": "Aucune image générée"
         }
       },
       "memoizedLink": {

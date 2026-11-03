@@ -171,7 +171,10 @@ def test_reminder_retains_citation_guidance(
 
 
 @pytest.mark.parametrize("image_succeeds", [True, False])
-def test_image_and_web_search_keep_the_task_instructions(image_succeeds: bool) -> None:
+@pytest.mark.parametrize("nested", [True, False])
+def test_image_and_web_search_keep_the_task_instructions(
+    image_succeeds: bool, nested: bool
+) -> None:
     image = _direct_image()
     if not image_succeeds:
         image = image.model_copy(
@@ -180,6 +183,16 @@ def test_image_and_web_search_keep_the_task_instructions(image_succeeds: bool) -
                 "is_error": True,
             }
         )
+    if nested:
+        nested_result = _nested_image()
+        assert isinstance(nested_result.details, CodeModeExecutionResult)
+        nested_result.details.calls[0] = nested_result.details.calls[0].model_copy(
+            update={
+                "details": image.details,
+                "state": "ok" if image_succeeds else "error",
+            }
+        )
+        image = nested_result
     document = SearchDoc(
         document_id="web-result",
         chunk_ind=0,
