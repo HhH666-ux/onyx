@@ -205,6 +205,12 @@ and ignore thread-pool `submit` calls; expect no runtime matches.
    `AgentEndEvent`. The first cancellation signal wins, so a later deadline
    cannot relabel a user Stop.
 
+8. `deadline-cause` **Run deadlines preserve cancellation cause.**
+   `Agent.start(deadline_at=...)` saves the deadline in `RunProgress`. A deadline
+   cancellation records `RunFailureKind.DEADLINE` and publishes it on
+   `AgentEndEvent`. The first cancellation signal wins, so a later deadline
+   cannot relabel a user Stop.
+
 ---
 
 ## Decisions
