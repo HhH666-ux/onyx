@@ -68,8 +68,9 @@ Its neighbours own:
 ```
 Admin config                                Turn time (tools/tool_constructor.py)
 MCPServer --1:N--> Tool (mcp_server_id,      resolve_mcp_credentials(server, user)
-   |               mcp_input_schema)           once per server -> one MCPTool per
-   +--admin_connection_config (shared)          saved Tool row, schema from the DB
+   |               mcp_input_schema,           once per server -> one MCPTool per
+   |               mcp_output_schema)          saved Tool row, schemas from the DB
+   +--admin_connection_config (shared)
    +--MCPConnectionConfig per user_email
 Tool (openapi_schema) ---------------------> build_custom_tools_from_openapi_schema_
    +--oauth_config_id -> OAuthConfig           and_headers: one CustomTool per
