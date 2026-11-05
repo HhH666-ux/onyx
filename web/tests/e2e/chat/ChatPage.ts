@@ -79,10 +79,6 @@ export class ChatPage {
   }
 
   /** Images a tool generated for an AI message, shown at the top of its answer. */
-  answerText(text: string, index = 0): Locator {
-    return this.aiMessage(index).getByText(text, { exact: true });
-  }
-
   generatedImages(index = 0): Locator {
     return this.aiMessage(index).getByRole("img", {
       name: "Chat attachment",

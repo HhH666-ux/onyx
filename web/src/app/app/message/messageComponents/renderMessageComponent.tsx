@@ -19,7 +19,10 @@ import { MessageTextRenderer } from "@/app/app/message/messageComponents/rendere
 import { ImageToolRenderer } from "@/app/app/message/messageComponents/renderers/ImageToolRenderer";
 import { PythonToolRenderer } from "@/app/app/message/messageComponents/timeline/renderers/code/PythonToolRenderer";
 import { CodingAgentRenderer } from "@/app/app/message/messageComponents/timeline/renderers/code/CodingAgentRenderer";
-import { isCodingAgentPackets, isNestedPacket } from "@/app/app/message/messageComponents/timeline/packetHelpers";
+import {
+  isCodingAgentPackets,
+  isNestedPacket,
+} from "@/app/app/message/messageComponents/timeline/packetHelpers";
 import { ReasoningRenderer } from "@/app/app/message/messageComponents/timeline/renderers/reasoning/ReasoningRenderer";
 import CustomToolRenderer from "@/app/app/message/messageComponents/renderers/CustomToolRenderer";
 import { FileReaderToolRenderer } from "@/app/app/message/messageComponents/timeline/renderers/filereader/FileReaderToolRenderer";

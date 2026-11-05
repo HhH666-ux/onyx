@@ -78,6 +78,8 @@ def collapse_citations(
     answer_text: str,
     existing_citation_mapping: CitationMapping,
     new_citation_mapping: CitationMapping,
+    *,
+    minimum_citation_number: int = 1,
 ) -> tuple[str, CitationMapping]:
     """Collapse the citations in the text to use the smallest possible numbers.
 
@@ -93,6 +95,7 @@ def collapse_citations(
             are preserved unchanged in the output.
         new_citation_mapping: Citations from the current text that need to be collapsed.
             The keys are the citation numbers as they appear in answer_text.
+        minimum_citation_number: First number reserved for this call when tools run in parallel.
 
     Returns:
         A tuple of (updated_text, combined_mapping) where:
@@ -111,6 +114,8 @@ def collapse_citations(
         next_citation_num = max(existing_citation_mapping.keys()) + 1
     else:
         next_citation_num = 1
+
+    next_citation_num = max(next_citation_num, minimum_citation_number)
 
     # Build the mapping from old citation numbers (in new_citation_mapping) to new numbers
     old_to_new: dict[int, int] = {}

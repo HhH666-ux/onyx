@@ -1,11 +1,13 @@
 """Code mode results render live and on replay, save, and change the offered tools."""
 
+import threading
 from typing import Any
 from unittest.mock import MagicMock
 
 import pytest
 from pydantic import BaseModel
 
+from onyx.agents.agent_coordination import AgentCoordinator
 from onyx.agents.models import (
     ExecutionStatus,
     RunState,
@@ -13,6 +15,7 @@ from onyx.agents.models import (
     StepRecord,
     ToolExecutionRecord,
 )
+from onyx.agents.tools import SpawnResult, ToolInvocation
 from onyx.chat.agent import ChatAgent
 from onyx.chat.checkpoint import CHECKPOINT_PAYLOAD_TYPES, CheckpointSerializer
 from onyx.chat.code_mode_renderer import tool_renderer
@@ -24,14 +27,18 @@ from onyx.chat.models import (
 from onyx.chat.presentation import project_response
 from onyx.chat.prompt_utils import build_system_prompt
 from onyx.chat.renderer import MessageRenderer, ResponseLayout
+from onyx.chat.subagent_tools import SpawnAgentTool
 from onyx.context.search.models import SearchDocsResponse
 from onyx.db.models import StoredToolResult
 from onyx.file_store.models import ExtractedContextFiles
+from onyx.llm.cancellation import CancellationSignal
 from onyx.llm.model_response import (
     Delta,
 )
 from onyx.llm.models import (
     AssistantMessage,
+    GenerationRequest,
+    TextContent,
     ToolCall,
     ToolCallDeltaEvent,
     ToolCallStartEvent,
@@ -54,6 +61,7 @@ from onyx.tools.models import (
     CustomToolCallSummary,
     LlmPythonExecutionResult,
     PythonExecutionFile,
+    ToolContext,
 )
 from onyx.tools.tool_implementations.code_mode.code_mode_tool import (
     CodeModeTool,
@@ -70,8 +78,14 @@ from onyx.tools.tool_implementations.code_mode.models import (
 )
 from onyx.tools.tool_implementations.search.search_tool import SearchTool
 from onyx.utils.postgres_sanitization import sanitize_json_like
-from tests.unit.onyx.agents.fakes import EchoTool, ScriptedLLM, run_agent
-from tests.unit.onyx.tools.code_mode.fakes import search_doc
+from tests.unit.onyx.agents.fakes import (
+    EchoTool,
+    FakeModelClient,
+    FakeRunStore,
+    ScriptedLLM,
+    run_agent,
+)
+from tests.unit.onyx.tools.code_mode.fakes import FakeTool, search_doc
 
 PLACEMENT = Placement(turn_index=1, tab_index=0)
 CODE = "r = await internal_search(queries=['q'])\nprint(r)"
@@ -501,3 +515,136 @@ def test_live_stdout_cut_at_the_limit_is_replaced_by_the_saved_stdout() -> None:
     )
     assert isinstance(replayed, packets.CodeModeDelta)
     assert (replayed.stdout, replayed.replace_stdout) == (saved, False)
+
+
+@pytest.mark.parametrize("wait_for_child", [False, True])
+def test_chat_delegates_to_an_independent_code_mode_agent(wait_for_child: bool) -> None:
+    entered, release = threading.Event(), threading.Event()
+    child_requests: list[GenerationRequest] = []
+    saved: list[RunState] = []
+    spawned: list[SpawnResult] = []
+
+    def work(invocation: ToolInvocation, _context: ToolContext) -> ToolResult:
+        entered.set()
+        assert release.wait(10)
+        invocation.cancellation.check()
+        return ToolResult(content="work complete")
+
+    def reply(
+        request: GenerationRequest, cancellation: CancellationSignal
+    ) -> AssistantMessage:
+        cancellation.check()
+        names = {tool.name for tool in request.tools}
+        results = [
+            message
+            for message in request.messages
+            if isinstance(message, ToolResultMessage)
+        ]
+        if "spawn_agent" not in names:
+            child_requests.append(request)
+            assert "execute_code" in names
+            assert not {"spawn_agent", "wait_agent", "cancel_agent"} & names
+            if not results:
+                return AssistantMessage(
+                    content=[
+                        ToolCall(
+                            id="code",
+                            name="execute_code",
+                            arguments={"code": "print(await work(value='child'))"},
+                        )
+                    ]
+                )
+            assert not results[0].is_error
+            assert "work complete" in results[0].content
+            return AssistantMessage(content=[TextContent(text="Child answer")])
+        if not results:
+            return AssistantMessage(
+                content=[
+                    ToolCall(
+                        id="spawn",
+                        name="spawn_agent",
+                        arguments={
+                            "name": "investigate",
+                            "instruction": "Independent task",
+                        },
+                    )
+                ]
+            )
+        if len(results) == 1:
+            started = SpawnResult.model_validate_json(results[0].content)
+            spawned.append(started)
+            assert entered.wait(10)
+            if wait_for_child:
+                release.set()
+                return AssistantMessage(
+                    content=[
+                        ToolCall(
+                            id="wait",
+                            name="wait_agent",
+                            arguments={"agent_id": started.agent_id},
+                        )
+                    ]
+                )
+        else:
+            assert results[-1].content == "Child answer"
+        return AssistantMessage(content=[TextContent(text="Parent answer")])
+
+    agent = ChatAgent(
+        messages=[],
+        tools=[FakeTool("work", work)],
+        code_mode=True,
+        subagents_enabled=True,
+        custom_agent_prompt=None,
+        base_system_prompt="",
+        context_files=_context_files(),
+        persona=None,
+        user_memory_context=None,
+        llm=FakeModelClient(reply),
+        token_counter=lambda text: len(text) // 4,
+    )
+    spawn = next(
+        tool for tool in agent.application_tools if isinstance(tool, SpawnAgentTool)
+    )
+    child = spawn.create_agent()
+    assert isinstance(child, ChatAgent)
+    assert child.code_cells is not None
+    assert child.code_cells is not agent.code_cells
+    assert not child.subagents_enabled
+    assert agent.capture_state().subagents_enabled
+    assert not child.capture_state().subagents_enabled
+    coordinator = AgentCoordinator(
+        store=FakeRunStore(save=lambda run: saved.append(run.snapshot()))
+    )
+    try:
+        result = run_agent(
+            agent,
+            messages=[UserMessage(content="Delegate this")],
+            max_steps=4,
+            coordinator=coordinator,
+        )
+        assert result.output.text == "Parent answer"
+        child_run = coordinator.child_run(spawned[0].run_id, agent.id)
+        assert child_run is not None
+        if not wait_for_child:
+            assert child_run.status == RunStatus.RUNNING
+            assert not child_run.cancellation_signal.cancelled
+        release.set()
+        assert child_run.result(10).output.text == "Child answer"
+        assert child_run.wait_for_idle(10)
+        assert (
+            coordinator.completion(child_run.id).result(10).status == RunStatus.COMPLETE
+        )
+        assert any(
+            state.run_id == child_run.id and state.status == RunStatus.COMPLETE
+            for state in saved
+        )
+        assert len(child_requests) == 2
+        assert any(
+            message.text == "Independent task" for message in child_requests[0].messages
+        )
+        assert all(
+            message.text != "Delegate this" for message in child_requests[0].messages
+        )
+    finally:
+        release.set()
+        assert coordinator.close(10)

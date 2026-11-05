@@ -322,9 +322,8 @@ describe("packetProcessor", () => {
       ];
       const result = processPackets(state, packets);
 
-        expect(result.displayGroupKeys.has("0-0")).toBe(true);
-      }
-    );
+      expect(result.displayGroupKeys.has("0-0")).toBe(true);
+    });
   });
 
   describe("SECTION_END and ERROR tracking", () => {

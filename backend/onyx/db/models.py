@@ -156,6 +156,7 @@ from onyx.tools.models import (
     LlmBashExecutionResult,
     LlmPythonExecutionResult,
     MemoryUpdated,
+    SubagentResult,
     ToolExecutionError,
 )
 from onyx.tools.tool_implementations.code_mode.models import CodeModeExecutionResult
@@ -3785,6 +3786,7 @@ class StoredToolResult(ToolResultMessage):
         Annotated[
             SearchDocsResponse
             | ResearchAgentCallResult
+            | SubagentResult
             | CodingAgentCallResult
             | CustomToolCallSummary
             | FileReadResult

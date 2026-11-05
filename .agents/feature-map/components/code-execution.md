@@ -27,6 +27,8 @@
   `yield_time_ms` (default 30 s) or calls `yield_control()`, the call returns
   the output so far and the cell keeps running. The model gets the rest with
   `wait_code`, or stops the cell with `wait_code(terminate=true)`.
+  Cells belong to one response. An independent child agent owns separate cells,
+  so ending the parent response does not stop the child’s programs.
 - **The user sees the tool calls, not the code.** Each tool call that a
   program makes shows as its own timeline step, the same as a direct call:
   searches, MCP and custom tools, URL reads, images. The program, its output,

@@ -32,6 +32,10 @@ document does not repeat it.
   `ToolInvocation.agents.spawn_agent`. The tool returns a `ChildRunWait` and
   sets `result_from_children` instead of blocking, and the parent run suspends
   until the child ends.
+- **Independent children.** With Code Mode enabled, persistent single-model Chat
+  exposes `chat/subagent_tools.py` controls to spawn, list, inspect, wait for, and
+  cancel children. These children survive the root response. Later turns use
+  the existing branch-scoped directory and run store to access them.
 - [[tools-framework]]: `tools/interface.py:Tool.bind` turns each chat `Tool`
   into an `AgentTool`.
 - **A backend developer who builds a feature on the runtime.** Start from the
@@ -199,12 +203,6 @@ and ignore thread-pool `submit` calls; expect no runtime matches.
    as its agent ID and an assistant response with no status, so each response
    starts one run. A saved child needs exactly one `UserMessage` as input. Standalone and content-free incognito
    runs use generated IDs.
-8. `deadline-cause` **Run deadlines preserve cancellation cause.**
-   `Agent.start(deadline_at=...)` saves the deadline in `RunProgress`. A deadline
-   cancellation records `RunFailureKind.DEADLINE` and publishes it on
-   `AgentEndEvent`. The first cancellation signal wins, so a later deadline
-   cannot relabel a user Stop.
-
 8. `deadline-cause` **Run deadlines preserve cancellation cause.**
    `Agent.start(deadline_at=...)` saves the deadline in `RunProgress`. A deadline
    cancellation records `RunFailureKind.DEADLINE` and publishes it on

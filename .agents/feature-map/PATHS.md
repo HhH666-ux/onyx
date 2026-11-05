@@ -30,6 +30,8 @@ covers new files that match it.
 | `backend/onyx/chat/history_store.py`, `backend/onyx/chat/response.py`, `backend/onyx/db/chat_checkpoint.py` | chat-persistence |
 | `backend/onyx/chat/run_store.py`, `backend/onyx/chat/checkpoint.py`, `backend/onyx/chat/restoration.py` | agent-runtime, chat-persistence |
 | `backend/onyx/chat/subagents.py` | agent-runtime |
+| `backend/onyx/chat/subagent_tools.py` | core-chat-loop, tools-framework |
+| `backend/onyx/chat/tool_results.py` | tools-framework, citations |
 | `backend/onyx/chat/files.py` | context-assembly, projects |
 | `backend/onyx/chat/README.md` | core-chat-loop, context-assembly |
 | `backend/onyx/chat/models.py` | core-chat-loop, streaming-protocol |
@@ -383,11 +385,12 @@ the admin routes and check that each has a row above, run
 | `backend/Dockerfile`, `backend/Dockerfile.model_server`, `web/Dockerfile` | Image builds. `.github/workflows/deployment.yml` sets their build args, such as the version and the git details on the About page. |
 | `deployment/data/nginx/`, `cli/internal/deploy/deployfiles/embedded/data/nginx/` | Reverse-proxy templates. The `cli/` copies are generated: run `ods generate-compose --write` after you change `deployment/data/nginx/`. |
 | `cli/` | The Onyx CLI client. Only its packet parser has an owner (streaming-protocol). |
-| `tools/`, `backend/scripts/`, `backend/requirements/` | Developer tooling and dependency files. |
+| `tools/`, `backend/scripts/`, `backend/requirements/`, `pyproject.toml`, `uv.lock` | Developer tooling and dependency files. |
 | `web/src/lib/common/` | App components meant for any feature: the list states `NoResults` and `NoItems`, and `GridSearchInput`. The agents catalog is their only caller so far. Check the callers. |
 | `web/.oxlintrc.json` | Lint config for `web/`, with the design-system, layout and navigation baselines. A file in a baseline only warns. When you move a baselined file, change its path; never add a new file (`web/AGENTS.md`). |
 | `web/AGENTS.md` | Frontend standards for every agent. Read it before you work in `web/`. |
 | `web/bun.lock` | The `web/` dependency lockfile. `bun install` writes it; do not edit it by hand. |
+| `web/jest.config.js` | Web test configuration. Read the component exercised by the tests. |
 | `web/.type-coverage-baseline.yaml` | Type-coverage floor of each `web/` directory. The `typescript-check` pre-commit hook fails when a directory falls below its floor (`web/AGENTS.md`, Tests). |
 | `.github/` | CI. Read the workflow. |
 | `web/src/app/ee/admin/` | A second admin route tree. `web/src/proxy.ts:EE_ROUTES` rewrites the `/admin/...` paths it lists to this tree. Check `EE_ROUTES` before you decide which copy serves an `/admin/...` path. |

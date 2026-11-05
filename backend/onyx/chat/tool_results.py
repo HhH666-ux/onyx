@@ -10,6 +10,7 @@ from onyx.context.search.models import SearchDoc, SearchDocsResponse
 from onyx.deep_research.models import ResearchAgentCallResult
 from onyx.llm.models import ToolResultMessage
 from onyx.prompts.chat_prompts import TOOL_CALL_RESPONSE_CROSS_MESSAGE
+from onyx.tools.models import SubagentResult
 from onyx.tools.tool_implementations.code_mode.models import (
     CodeModeCall,
     CodeModeExecutionResult,
@@ -65,7 +66,7 @@ def _search_sources(searches: Sequence[SearchDocsResponse]) -> ResultSources:
 
 def tool_result_sources(details: BaseModel | None) -> ResultSources | None:
     """The documents and citations of any tool result; None if it carries none."""
-    if isinstance(details, ResearchAgentCallResult):
+    if isinstance(details, (ResearchAgentCallResult, SubagentResult)):
         return ResultSources(
             documents=list(details.citation_mapping.values()),
             displayed=None,

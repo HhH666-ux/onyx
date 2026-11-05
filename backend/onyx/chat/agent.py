@@ -34,6 +34,13 @@ from onyx.chat.prompt_utils import (
     build_chat_prompt,
     prepare_prompt,
 )
+from onyx.chat.subagent_tools import (
+    CancelAgentTool,
+    InspectAgentTool,
+    ListAgentsTool,
+    SpawnAgentTool,
+    WaitAgentTool,
+)
 from onyx.chat.tool_results import tool_result_parts, tool_result_sources
 from onyx.configs.chat_configs import MAX_LLM_CYCLES
 from onyx.context.models import UserMemoryContext
@@ -129,6 +136,7 @@ class ChatAgent(Agent, RestorableFeature):
         previous_run_id: str | None = None,
         agent_id: str | None = None,
         code_mode: bool = False,
+        subagents_enabled: bool = False,
     ) -> None:
         self.max_steps = MAX_LLM_CYCLES
         self.custom_agent_prompt = custom_agent_prompt
@@ -139,6 +147,7 @@ class ChatAgent(Agent, RestorableFeature):
         # them, and code mode applies per agent.
         self.configured_tools = list(tools)
         self.code_mode = code_mode
+        self.subagents_enabled = subagents_enabled
         # Each agent instance has its own cells, so a restored run has none open.
         self.application_tools, self.code_cells = (
             with_code_mode(self.configured_tools)
@@ -190,6 +199,38 @@ class ChatAgent(Agent, RestorableFeature):
         self.persona = persona
         self.base_system_prompt = base_system_prompt
         self.reminders_enabled = reminders_enabled
+        if subagents_enabled:
+
+            def create_child() -> Agent:
+                return ChatAgent(
+                    messages=[],
+                    tools=self.configured_tools,
+                    custom_agent_prompt=self.custom_agent_prompt,
+                    base_system_prompt=self.base_system_prompt,
+                    context_files=self.context_files,
+                    persona=self.persona,
+                    user_memory_context=self.memory,
+                    llm=self.llm,
+                    token_counter=self.token_counter,
+                    user_identity=user_identity,
+                    chat_files=self.chat_files,
+                    reasoning_effort=self.reasoning_effort,
+                    include_citations=self.include_citations,
+                    all_injected_file_metadata=self.file_metadata,
+                    inject_memories_in_prompt=self.inject_memories,
+                    reminders_enabled=self.reminders_enabled,
+                    code_mode=self.code_mode,
+                )
+
+            self.application_tools.extend(
+                [
+                    SpawnAgentTool(create_child),
+                    ListAgentsTool(),
+                    InspectAgentTool(),
+                    WaitAgentTool(),
+                    CancelAgentTool(),
+                ]
+            )
         super().__init__(
             llm,
             tools=[tool.bind(self._tool_context) for tool in self.application_tools],
@@ -220,6 +261,7 @@ class ChatAgent(Agent, RestorableFeature):
             inject_memories=self.inject_memories,
             forced_tool_id=self.forced_tool_id,
             code_mode=self.code_mode,
+            subagents_enabled=self.subagents_enabled,
             base_prompt=self.base_system_prompt,
             custom_prompt=self.custom_agent_prompt,
             reminders_enabled=self.reminders_enabled,
@@ -244,6 +286,7 @@ class ChatAgent(Agent, RestorableFeature):
             or saved.inject_memories != self.inject_memories
             or saved.forced_tool_id != self.forced_tool_id
             or saved.code_mode != self.code_mode
+            or saved.subagents_enabled != self.subagents_enabled
             or saved.base_prompt != self.base_system_prompt
             or saved.custom_prompt != self.custom_agent_prompt
             or saved.reminders_enabled != self.reminders_enabled
